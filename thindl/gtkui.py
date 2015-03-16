@@ -47,36 +47,50 @@ import deluge.common
 
 from common import get_resource
 
-class ThinDLMenu(gtk.MenuItem):
-    def __init__(self):
-        log.info("loading menu !!!")
-        gtk.MenuItem.__init__(self, _("Local Download"))
-
-        #self.sub_menu = gtk.Menu()
-        #self.set_submenu(self.sub_menu)
 
 class GtkUI(GtkPluginBase):
     def enable(self):
-        log.info("starting plugin")
         self.glade = gtk.glade.XML(get_resource("config.glade"))
-
-        self.thindl_menu = None
-        self.load_interface()
 
         component.get("Preferences").add_page("thindl", self.glade.get_widget("prefs_box"))
         component.get("PluginManager").register_hook("on_apply_prefs", self.on_apply_prefs)
         component.get("PluginManager").register_hook("on_show_prefs", self.on_show_prefs)
 
+        self.menu = None
+        self.load_interface()
+
     def load_interface(self):
         log.info("loading interface !!!")
-        torrentmenu = component.get("MenuBar").torrentmenu
-        self.thindl_menu = ThinDLMenu()
-        torrentmenu.append(self.thindl_menu)
 
-        self.thindl_menu.show_all()
+        mainmenu = component.get("MenuBar")
+        torrentmenu = mainmenu.torrentmenu
+
+        self.menu = gtk.MenuItem(_("Local Download"))
+        self.menu.show()
+
+        def get_t_ids():
+            """
+            returns selected torrents
+            """
+            return component.get("TorrentView").get_selected_torrents()
+
+        def on_menu_activate(self):
+            log.info("it works !!!")
+            for t_id in get_t_ids():
+                log.info("Got Torrent: {}".format(t_id))
+
+
+        self.menu.connect("activate", on_menu_activate)
+
+        mainmenu.add_torrentmenu_separator()
+        torrentmenu.append(self.menu)
 
     def disable(self):
-        log.info("disabling thindl")
+        torrentmenu = component.get("MenuBar").torrentmenu
+        torrentmenu.remove(self.menu)
+
+        ## TODO eventually check if download in-progress
+
         component.get("Preferences").remove_page("thindl")
         component.get("PluginManager").deregister_hook("on_apply_prefs", self.on_apply_prefs)
         component.get("PluginManager").deregister_hook("on_show_prefs", self.on_show_prefs)
