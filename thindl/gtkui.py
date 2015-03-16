@@ -47,6 +47,9 @@ import deluge.common
 
 from common import get_resource
 
+#import pkg_resources
+import os.path
+
 
 class GtkUI(GtkPluginBase):
     def enable(self):
@@ -59,6 +62,19 @@ class GtkUI(GtkPluginBase):
         self.menu = None
         self.load_interface()
 
+    def on_get(self, data):
+        torrent = component.get("TorrentView").get_torrent_status(self.t_id)
+        ## ask to confirm torrent ??
+        ## confirm host?
+        log.info("Connection Info: {}".format(client.connection_info()))
+        ## if localhost, don't transfer
+        log.info("Localhost? {}".format(client.is_localhost()))
+        ## ask to confirm path / folder [and size too]?
+        ## TODO bug if they move completed path around manually...find better way to locate files on disk
+        ## check torrent["progress"] != 100.0
+        log.info("Full Path: {}".format(os.path.join(data["move_on_completed_path"], torrent["name"])))
+        ## check torrent status / compltion
+
     def load_interface(self):
         log.info("loading interface !!!")
 
@@ -68,22 +84,31 @@ class GtkUI(GtkPluginBase):
         self.menu = gtk.MenuItem(_("Local Download"))
         self.menu.show()
 
-        def get_t_ids():
-            """
-            returns selected torrents
-            """
-            return component.get("TorrentView").get_selected_torrents()
 
-        def on_menu_activate(self):
-            log.info("it works !!!")
-            for t_id in get_t_ids():
-                log.info("Got Torrent: {}".format(t_id))
-
-
-        self.menu.connect("activate", on_menu_activate)
+        self.menu.connect("activate", self.on_menu_activate)
 
         mainmenu.add_torrentmenu_separator()
         torrentmenu.append(self.menu)
+
+    def get_t_ids(self):
+        """
+        returns selected torrents
+        """
+        return component.get("TorrentView").get_selected_torrent()
+
+    def on_menu_activate(self, data=None):
+        self.t_id = self.get_t_ids()  # just one for now...
+        #for t_id in get_t_ids():
+            ## got name and state (check completed/seeding whatever)
+            #torrent = component.get("TorrentManager")[t_id]
+
+            ## TODO get config data for completed location (remote/server) DONE
+            ## TODO get our config data for download location (local/client)
+            ## TODO get config data for server IP DONE
+
+            # regardless of 'move_on_completed' or not, path is always where it will be
+        t_data = component.get("SessionProxy").get_torrent_status(self.t_id,
+            ["move_on_completed_path"]).addCallback(self.on_get)
 
     def disable(self):
         torrentmenu = component.get("MenuBar").torrentmenu

@@ -58,6 +58,15 @@ class Core(CorePluginBase):
         pass
 
     @export
+    def download(self, t_id):
+        ## TODO here we can query torrent directory size, etc.
+        """Starts torrent download"""
+        log.info("got download request for: {}".format(t_id))
+        torrent = component.get("TorrentManager").torrents[t_id]
+        log.info("processing: {}".format(torrent.filename))
+        return torrent
+
+    @export
     def set_config(self, config):
         """Sets the config dictionary"""
         for key in config.keys():
