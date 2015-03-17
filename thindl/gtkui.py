@@ -47,7 +47,6 @@ import deluge.common
 
 from common import get_resource
 
-#import pkg_resources
 import os.path
 
 
@@ -59,21 +58,72 @@ class GtkUI(GtkPluginBase):
         component.get("PluginManager").register_hook("on_apply_prefs", self.on_apply_prefs)
         component.get("PluginManager").register_hook("on_show_prefs", self.on_show_prefs)
 
-        self.menu = None
+        self.dl_dialog = None
+        self.running = False
         self.load_interface()
 
     def on_get(self, data):
         torrent = component.get("TorrentView").get_torrent_status(self.t_id)
         ## ask to confirm torrent ??
         ## confirm host?
-        log.info("Connection Info: {}".format(client.connection_info()))
+        #log.info("Connection Info: {}".format(client.connection_info()))
+        conn = client.connection_info()
+        host = conn[0]
+        user = conn[2]
         ## if localhost, don't transfer
-        log.info("Localhost? {}".format(client.is_localhost()))
+        #log.info("Localhost? {}".format(client.is_localhost()))
         ## ask to confirm path / folder [and size too]?
         ## TODO bug if they move completed path around manually...find better way to locate files on disk
         ## check torrent["progress"] != 100.0
-        log.info("Full Path: {}".format(os.path.join(data["move_on_completed_path"], torrent["name"])))
+        #log.info("Full Path: {}".format(os.path.join(data["move_on_completed_path"], torrent["name"])))
+        path = os.path.join(data["move_on_completed_path"], torrent["name"])
         ## check torrent status / compltion
+
+        self.download_dialog(path, host, user)
+        ## open dialog box (like prefs or connection mgr window?) DONE
+        ## show remote path (break on 2 lines, etc.) [show host] DONE
+        ## show local path (browse button to change) TODO
+        ## input for # of simultaneous transfers (5 default) TODO
+        ## input for username / password (blocked out) [checkmark to remember maybe?? unsafe/only user] DONE
+        ## Start button [launch lftp subprocess/pipe stuff] TODO
+        ## then clear dialog box, place progress bar (how to get progress %? also get filesizes? transfer speed?) TODO
+        ## cancel button / done button TODO
+
+    def download_dialog(self, path, host, user):
+        """popup dialog with data..."""
+
+        self.builder = gtk.Builder()
+        self.window = component.get("MainWindow")
+
+        self.builder.add_from_file(get_resource("dialog.glade"))
+        self.dl_dialog = self.builder.get_object("downloadDialog")
+        self.dl_dialog.set_transient_for(self.window.window)
+
+        self.builder.get_object("remoteData").set_label(path)
+        self.builder.get_object("localData").set_label("/home/ericz/test/")
+        self.builder.get_object("hostData").set_label(host)
+        self.builder.get_object("userEntry").set_text(user)
+
+        self.builder.get_object("yesButton").connect("clicked", self.on_yesButton)
+        self.builder.get_object("noButton").connect("clicked", self.on_noButton)
+
+        self.dl_dialog.show_all()
+
+    def on_yesButton(self, data=None):
+        log.info("USER: {}".format(self.builder.get_object("userEntry").get_text()))
+
+        self.user = self.builder.get_object("userEntry").get_text()
+        self.password = self.builder.get_object("passwordEntry").get_text()
+        self.host = self.builder.get_object("hostData").get_text()
+        self.local_path = self.builder.get_object("localData").get_text()
+        self.remote_path = self.builder.get_object("remoteData").get_text()
+
+        self.dl_dialog.destroy()
+        del self.dl_dialog
+
+    def on_noButton(self, data=None):
+        self.dl_dialog.destroy()
+        del self.dl_dialog
 
     def load_interface(self):
         log.info("loading interface !!!")
