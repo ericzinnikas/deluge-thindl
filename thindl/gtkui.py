@@ -105,12 +105,13 @@ class GtkUI(GtkPluginBase):
         self.dl_builder.get_object("remoteData").set_label(path)
 
         ## TODO load from config
-        self.dl_builder.get_object("localData").set_filename("/home/ericz/test/")
+        self.dl_builder.get_object("localData").set_filename("~")
         self.dl_builder.get_object("hostData").set_label(host)
         self.dl_builder.get_object("userEntry").set_text(user)
 
         self.dl_builder.get_object("yesButton").connect("clicked", self.on_yesButton)
         self.dl_builder.get_object("noButton").connect("clicked", self.on_noButton)
+        self.dl_builder.get_object("downloadDialog").connect("close", self.on_noButton)
 
         self.dl_dialog.show_all()
 
@@ -124,7 +125,7 @@ class GtkUI(GtkPluginBase):
         self.pr_builder.add_from_file(get_resource("progress.glade"))
         self.prog_dialog = self.pr_builder.get_object("progressDialog")
 
-        ## TODO !!! catch if user hits escape (doesn't click, still need to kill transfer, maybe make this a window)
+        self.pr_builder.get_object("progressDialog").connect("close", self.on_cancelButton)
         self.pr_builder.get_object("cancelButton").connect("clicked", self.on_cancelButton)
         self.pr_builder.get_object("doneButton").connect("clicked", self.on_doneButton)
 
