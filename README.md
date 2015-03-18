@@ -40,7 +40,7 @@ Finally, you've got a progress window showing completion of the download and an 
 
 ## To Do
 - [ ] Options for number of simultaneous connections (pget stuff)
-- [ ] Fix Done button
+- [X] Fix Done button
 - [ ] Save/Load options to/from config
 - [ ] Catch edge cases when exiting dialogs (escape instead of button press)
 - [ ] Differentiate files vs. directories (different LFTP options)
