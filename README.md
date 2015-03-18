@@ -3,12 +3,12 @@ This plugin offers a convenient way for those using Deluge's [Thin Client](http:
 
 
 ## Usage
-Currently under development and lacking any testing, but the author has verified it works (at least on a basic level).  Many more improvements are needed before advocating it to the world.  If you really want to use it, clone this repo then build the plugin yourself with `python setup.py bdist_egg`.
+Currently under development and lacking formal testing, but the author has verified it works (at least on a basic level).  Many more improvements are needed before advocating it to the world.  If you really want to use it, clone this repo then build the plugin yourself with `python setup.py bdist_egg`.
 
 
 ## Features
 - Uses [LFTP](http://lftp.yar.ru/) to fetch files over SFTP
-- Plugin auto-configures LFTP per torrent: host, user, remote directory, local directory (pget options coming soon)
+- Plugin auto-configures LFTP per torrent: host, user, remote directory, local directory, concurrent downloads
 
 
 ## Screenshots
@@ -18,7 +18,7 @@ First you can access the plugin through the context menu on a per-torrent basis:
 
 ![Context Menu](/screenshots/thindl-menu.png?raw=true "Context Menu")
 
-The next dialog shows selected options (more configuration will be available in the future):
+The next dialog shows selected options:
 
 ![Download Dialog](/screenshots/thindl-dialog.png?raw=true "Download Dialog")
 
