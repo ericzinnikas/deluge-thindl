@@ -53,6 +53,46 @@
           <object class="GtkVBox" id="vbox1">
             <property name="visible">True</property>
             <property name="can_focus">False</property>
+            <property name="homogeneous">True</property>
+            <child>
+              <object class="GtkHBox" id="hbox6">
+                <property name="visible">True</property>
+                <property name="can_focus">False</property>
+                <child>
+                  <object class="GtkLabel" id="nameLabel">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="xalign">0</property>
+                    <property name="label" translatable="yes">Remote Name:</property>
+                    <property name="width_chars">20</property>
+                  </object>
+                  <packing>
+                    <property name="expand">True</property>
+                    <property name="fill">True</property>
+                    <property name="position">0</property>
+                  </packing>
+                </child>
+                <child>
+                  <object class="GtkLabel" id="nameData">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <property name="xalign">0</property>
+                    <property name="ellipsize">middle</property>
+                    <property name="max_width_chars">50</property>
+                  </object>
+                  <packing>
+                    <property name="expand">True</property>
+                    <property name="fill">True</property>
+                    <property name="position">1</property>
+                  </packing>
+                </child>
+              </object>
+              <packing>
+                <property name="expand">True</property>
+                <property name="fill">True</property>
+                <property name="position">0</property>
+              </packing>
+            </child>
             <child>
               <object class="GtkHBox" id="hbox3">
                 <property name="visible">True</property>
@@ -77,7 +117,7 @@
                     <property name="can_focus">False</property>
                     <property name="xalign">0</property>
                     <property name="ellipsize">middle</property>
-                    <property name="width_chars">50</property>
+                    <property name="max_width_chars">50</property>
                   </object>
                   <packing>
                     <property name="expand">True</property>
@@ -89,7 +129,7 @@
               <packing>
                 <property name="expand">True</property>
                 <property name="fill">True</property>
-                <property name="position">0</property>
+                <property name="position">1</property>
               </packing>
             </child>
             <child>
@@ -111,12 +151,11 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkLabel" id="localData">
+                  <object class="GtkFileChooserButton" id="localData">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
-                    <property name="xalign">0</property>
-                    <property name="ellipsize">middle</property>
-                    <property name="width_chars">50</property>
+                    <property name="action">select-folder</property>
+                    <property name="width_chars">25</property>
                   </object>
                   <packing>
                     <property name="expand">True</property>
@@ -128,7 +167,7 @@
               <packing>
                 <property name="expand">True</property>
                 <property name="fill">True</property>
-                <property name="position">1</property>
+                <property name="position">2</property>
               </packing>
             </child>
             <child>
@@ -154,7 +193,7 @@
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <property name="xalign">0</property>
-                    <property name="width_chars">50</property>
+                    <property name="max_width_chars">50</property>
                   </object>
                   <packing>
                     <property name="expand">True</property>
@@ -166,7 +205,7 @@
               <packing>
                 <property name="expand">True</property>
                 <property name="fill">True</property>
-                <property name="position">2</property>
+                <property name="position">3</property>
               </packing>
             </child>
             <child>
@@ -192,7 +231,7 @@
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
                     <property name="invisible_char">●</property>
-                    <property name="width_chars">50</property>
+                    <property name="width_chars">25</property>
                     <property name="primary_icon_activatable">False</property>
                     <property name="secondary_icon_activatable">False</property>
                     <property name="primary_icon_sensitive">True</property>
@@ -208,7 +247,7 @@
               <packing>
                 <property name="expand">True</property>
                 <property name="fill">True</property>
-                <property name="position">3</property>
+                <property name="position">4</property>
               </packing>
             </child>
             <child>
@@ -235,7 +274,7 @@
                     <property name="can_focus">True</property>
                     <property name="visibility">False</property>
                     <property name="invisible_char">●</property>
-                    <property name="width_chars">50</property>
+                    <property name="width_chars">25</property>
                     <property name="primary_icon_activatable">False</property>
                     <property name="secondary_icon_activatable">False</property>
                     <property name="primary_icon_sensitive">True</property>
@@ -251,7 +290,7 @@
               <packing>
                 <property name="expand">True</property>
                 <property name="fill">True</property>
-                <property name="position">4</property>
+                <property name="position">5</property>
               </packing>
             </child>
           </object>

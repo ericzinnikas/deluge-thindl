@@ -48,6 +48,11 @@ import deluge.common
 from common import get_resource
 
 import os.path
+import os
+from os import O_NONBLOCK
+from subprocess import Popen, PIPE, STDOUT
+from fcntl import fcntl, F_GETFL, F_SETFL
+from time import sleep
 
 
 class GtkUI(GtkPluginBase):
@@ -58,6 +63,10 @@ class GtkUI(GtkPluginBase):
         component.get("PluginManager").register_hook("on_apply_prefs", self.on_apply_prefs)
         component.get("PluginManager").register_hook("on_show_prefs", self.on_show_prefs)
 
+        self.proc = None
+        self.local_folder = None
+        self.remote_size = None
+        self.textview = None
         self.dl_dialog = None
         self.running = False
         self.load_interface()
@@ -76,10 +85,16 @@ class GtkUI(GtkPluginBase):
         ## TODO bug if they move completed path around manually...find better way to locate files on disk
         ## check torrent["progress"] != 100.0
         #log.info("Full Path: {}".format(os.path.join(data["move_on_completed_path"], torrent["name"])))
-        path = os.path.join(data["move_on_completed_path"], torrent["name"])
+        #path = os.path.join(data["move_on_completed_path"], torrent["name"])
         ## check torrent status / compltion
 
-        self.download_dialog(path, host, user)
+        if data["move_on_completed"]:
+            path = data["move_on_completed_path"]
+        else:
+            path = data["save_path"]
+        
+        log.info("Path is: {}".format(path))
+        self.download_dialog(path, torrent["name"], host, user)
         ## open dialog box (like prefs or connection mgr window?) DONE
         ## show remote path (break on 2 lines, etc.) [show host] DONE
         ## show local path (browse button to change) TODO
@@ -89,37 +104,162 @@ class GtkUI(GtkPluginBase):
         ## then clear dialog box, place progress bar (how to get progress %? also get filesizes? transfer speed?) TODO
         ## cancel button / done button TODO
 
-    def download_dialog(self, path, host, user):
+    def download_dialog(self, path, name, host, user):
         """popup dialog with data..."""
 
-        self.builder = gtk.Builder()
+        self.dl_builder = gtk.Builder()
         self.window = component.get("MainWindow")
 
-        self.builder.add_from_file(get_resource("dialog.glade"))
-        self.dl_dialog = self.builder.get_object("downloadDialog")
+        self.remote_name = name
+        self.remote_path = os.path.join(path, name)
+        self.host = host
+
+        self.dl_builder.add_from_file(get_resource("dialog.glade"))
+        self.dl_dialog = self.dl_builder.get_object("downloadDialog")
         self.dl_dialog.set_transient_for(self.window.window)
 
-        self.builder.get_object("remoteData").set_label(path)
-        self.builder.get_object("localData").set_label("/home/ericz/test/")
-        self.builder.get_object("hostData").set_label(host)
-        self.builder.get_object("userEntry").set_text(user)
+        self.dl_builder.get_object("nameData").set_label(name)
+        self.dl_builder.get_object("remoteData").set_label(path)
+        ## TODO load from config
+        self.dl_builder.get_object("localData").set_filename("/home/ericz/test/")
+        self.dl_builder.get_object("hostData").set_label(host)
+        self.dl_builder.get_object("userEntry").set_text(user)
 
-        self.builder.get_object("yesButton").connect("clicked", self.on_yesButton)
-        self.builder.get_object("noButton").connect("clicked", self.on_noButton)
+        self.dl_builder.get_object("yesButton").connect("clicked", self.on_yesButton)
+        self.dl_builder.get_object("noButton").connect("clicked", self.on_noButton)
 
         self.dl_dialog.show_all()
 
-    def on_yesButton(self, data=None):
-        log.info("USER: {}".format(self.builder.get_object("userEntry").get_text()))
+    def cb_get_rsize(self, size):
+        log.info("GOT RSIZE: {}".format(size))
+        self.remote_size = size
 
-        self.user = self.builder.get_object("userEntry").get_text()
-        self.password = self.builder.get_object("passwordEntry").get_text()
-        self.host = self.builder.get_object("hostData").get_text()
-        self.local_path = self.builder.get_object("localData").get_text()
-        self.remote_path = self.builder.get_object("remoteData").get_text()
+    def open_progress(self):
+        self.pr_builder = gtk.Builder()
+        self.window = component.get("MainWindow")
+
+        self.pr_builder.add_from_file(get_resource("progress.glade"))
+        self.prog_dialog = self.pr_builder.get_object("progressDialog")
+
+        ## TODO !!! catch if user hits escape (doesn't click, still need to kill transfer, maybe make this a window)
+        self.pr_builder.get_object("cancelButton").connect("clicked", self.on_cancelButton)
+        self.pr_builder.get_object("doneButton").connect("clicked", self.on_doneButton)
+
+        ### use fsize in common and fpcnt and fspeed
+
+        self.prog_dialog.show_all()
+        ## progress updates happen in update() loop [every 1s]
+
+    def on_doneButton(self, data=None):
+        ## TODO add catch for kill (i.e. process died, but still hit stop/done)
+        self.transfer.terminate()
+        sleep(0.10)
+        # .poll() cleans defunct, b/c we don't care anymore?
+        if self.transfer.poll() is None:
+            self.transfer.kill()
+        sleep(0.10)
+        if self.transfer.poll() is None:
+            pass  # uhhh....
+        self.prog_dialog.destroy()
+        del self.prog_dialog
+
+    def on_cancelButton(self, data=None):
+        # except OSError
+        self.transfer.terminate()
+        sleep(0.1)  # TODO do we need this?
+        # .poll() cleans defunct, b/c we don't care anymore?
+        if self.transfer.poll() is None:
+            self.transfer.kill()
+        sleep(0.1)
+        if self.transfer.poll() is None:
+            pass  # uhhh....
+        self.prog_dialog.destroy()
+        del self.prog_dialog
+
+    def on_yesButton(self, data=None):
+        log.info("USER: {}".format(self.dl_builder.get_object("userEntry").get_text()))
+
+        self.user = self.dl_builder.get_object("userEntry").get_text()
+        self.password = self.dl_builder.get_object("passwordEntry").get_text()
+        #self.host = self.builder.get_object("hostData").get_text()
+        self.local_folder = self.dl_builder.get_object("localData").get_filename()
+        ## change if we are grabbing file or directory TODO
+        self.local_folder = os.path.join(self.local_folder, self.remote_name)
+        if not os.path.exists(self.local_folder):
+            ## technically possible to get race condition...not probable though
+            os.makedirs(self.local_folder)
+        #self.remote_path = self.builder.get_object("remoteData").get_text()
+
+        log.info("Asking for rsize...")
+        client.thindl.get_size(self.remote_path).addCallback(self.cb_get_rsize)
+
+        log.info("Starting test transfer...")
+        if self.test_transfer():
+            log.info("Starting real transfer...")
+            self.start_transfer()  # TODO actually pass args
+            log.info("Showing progress...")
+            self.open_progress()
+            ## TODO catch transfer error when updating...
+            ## then see if program still running (though we need to wait for time to connect...? how when it hangs?
+            ## TODO figure out failure state: i.e. process has stopped, but filesizes not matched
+        else:
+            ## TODO connection error
+            ## present dialog about wrong user/password or network issues
+            pass
 
         self.dl_dialog.destroy()
         del self.dl_dialog
+
+    def test_transfer(self):
+        self.test_transfer = Popen(["/usr/bin/lftp", "sftp://{}".format(self.host)], stdin=PIPE, stdout=PIPE, stderr=PIPE)
+        out = self.test_transfer.communicate(
+                "user {} {} && ((ls && echo THINDLSUCCESS && exit) || (echo THINDLFAILURE && exit))".format(
+                self.user, self.password))
+        if self.test_transfer.poll() is None:
+            self.test_transfer.terminate()
+
+        if self.test_transfer.poll() is None:
+            self.test_transfer.kill()
+
+        return "THINDLSUCCESS" in out[0]
+
+    def start_transfer(self):  #, host, user, password, remote_path, local_folder):
+        ## TODO actually pass args (not prog state)...gets icky
+        ## TODO add in variables for connections per file
+        ## TODO config for location of LFTP binary (autofind initially)
+        ## TODO choose method sftp, etc...?
+        ## TODO how to better ignore output than PIPE?
+        ## TODO checkbox for overwrite/continue
+
+        self.transfer = Popen(["/usr/bin/lftp", "sftp://{}".format(self.host)], stdin=PIPE, stdout=PIPE, stderr=PIPE)
+
+        ## this doesn't block
+        ## TODO determine file vs folder (get vs mirror)
+        log.info("Transferring {} to {}".format(self.remote_path, self.local_folder))
+        self.transfer.stdin.write("user {} {} && (mirror {} {} || exit) && exit\n".format(
+            self.user, self.password, self.remote_path, self.local_folder))
+        #self.transfer.stdin.write("user {} {} && (get -O {} {} || exit) && exit\n".format(
+            #self.user, self.password, self.local_folder, self.remote_path))
+
+    def update(self):
+        ## TODO use this to update progress bar
+        ## use fsize in common and fpcnt and fspeed (and get_path_size)
+        ## TODO maybe avg. speed local growing (make sure B/s or b/s??)
+
+        if self.local_folder is not None and self.remote_size is not None:
+            local_size = deluge.common.get_path_size(self.local_folder)
+
+            if local_size <= 0:
+                local_size = 0.0
+            else:
+                local_size = float(local_size)
+
+            str = "{} / {}".format(deluge.common.fsize(local_size),
+                    deluge.common.fsize(self.remote_size))
+            self.pr_builder.get_object("progData").set_label(str)
+            self.pr_builder.get_object("progBar").set_fraction( local_size / self.remote_size )
+            log.info("Set percent to: {}".format(local_size / self.remote_size))
+            ## TODO when cancel, stop looping this part
 
     def on_noButton(self, data=None):
         self.dl_dialog.destroy()
@@ -158,7 +298,7 @@ class GtkUI(GtkPluginBase):
 
             # regardless of 'move_on_completed' or not, path is always where it will be
         t_data = component.get("SessionProxy").get_torrent_status(self.t_id,
-            ["move_on_completed_path"]).addCallback(self.on_get)
+            ["move_on_completed","move_on_completed_path","save_path"]).addCallback(self.on_get)
 
     def disable(self):
         torrentmenu = component.get("MenuBar").torrentmenu
