@@ -47,6 +47,7 @@ Finally, you've got a progress window showing completion of the download and an 
 - [ ] Average speed display in progress dialog
 - [ ] Differentiate files vs. directories (different LFTP options)
 - [ ] Catch transfer error states
+
 ### Long Term
 - [ ] Support for multiple LFTP sessions at once
 - [ ] Autofind LFTP binary (not hardcoded)
