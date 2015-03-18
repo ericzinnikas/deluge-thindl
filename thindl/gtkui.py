@@ -115,7 +115,6 @@ class GtkUI(GtkPluginBase):
         self.dl_dialog.show_all()
 
     def cb_get_rsize(self, size):
-        log.info("GOT RSIZE: {}".format(size))
         self.remote_size = size
 
     def open_progress(self):
@@ -136,6 +135,7 @@ class GtkUI(GtkPluginBase):
 
     def on_doneButton(self, data=None):
         ## TODO add catch for kill (i.e. process died, but still hit stop/done) maybe just check poll
+        self.running = False
         self.transfer.terminate()
         sleep(0.10)
         # .poll() cleans defunct, b/c we don't care anymore?
@@ -149,6 +149,7 @@ class GtkUI(GtkPluginBase):
 
     def on_cancelButton(self, data=None):
         # except OSError
+        self.running = False
         self.transfer.terminate()
         sleep(0.1)  # TODO do we need this?
         # .poll() cleans defunct, b/c we don't care anymore?
@@ -161,8 +162,6 @@ class GtkUI(GtkPluginBase):
         del self.prog_dialog
 
     def on_yesButton(self, data=None):
-        log.info("USER: {}".format(self.dl_builder.get_object("userEntry").get_text()))
-
         self.user = self.dl_builder.get_object("userEntry").get_text()
         self.password = self.dl_builder.get_object("passwordEntry").get_text()
         #self.host = self.builder.get_object("hostData").get_text()
@@ -178,8 +177,8 @@ class GtkUI(GtkPluginBase):
         log.info("Starting test transfer...")
         if self.test_transfer():
             log.info("Starting real transfer...")
+            self.running = True
             self.start_transfer()  # TODO actually pass args
-            log.info("Showing progress...")
             self.open_progress()
             ## TODO catch transfer error when updating...
             ## then see if program still running (though we need to wait for time to connect...? how when it hangs?
@@ -215,7 +214,6 @@ class GtkUI(GtkPluginBase):
 
         ## NOTE this doesn't block
         ## TODO determine file vs folder (get vs mirror)
-        log.info("Transferring {} to {}".format(self.remote_path, self.local_folder))
         self.transfer.stdin.write("user {} {} && (mirror {} {} || exit) && exit\n".format(
             self.user, self.password, self.remote_path, self.local_folder))
         #self.transfer.stdin.write("user {} {} && (get -O {} {} || exit) && exit\n".format(
@@ -225,28 +223,31 @@ class GtkUI(GtkPluginBase):
         ## NOTE use fsize in common and fpcnt and fspeed (and get_path_size)
         ## TODO maybe avg. speed local growing
 
-        if self.local_folder is not None and self.remote_size is not None:
-            local_size = deluge.common.get_path_size(self.local_folder)
+        if self.running:
+            if self.local_folder is not None and self.remote_size is not None:
+                local_size = deluge.common.get_path_size(self.local_folder)
 
-            if local_size <= 0:
-                local_size = 0.0
-            else:
-                local_size = float(local_size)
+                if local_size == self.remote_size:
+                    self.pr_builder.get_object("doneButton").set_sensitive(True)
+                    ## TODO check state across runs
+                    self.pr_builder.get_object("cancelButton").set_sensitive(False)
+                    self.running = False
 
-            str = "{} / {}".format(deluge.common.fsize(local_size),
-                    deluge.common.fsize(self.remote_size))
-            self.pr_builder.get_object("progData").set_label(str)
-            self.pr_builder.get_object("progBar").set_fraction( local_size / self.remote_size )
-            log.info("Set percent to: {}".format(local_size / self.remote_size))
-            ## TODO when cancel, stop looping this part
+                if local_size <= 0:
+                    local_size = 0.0
+                else:
+                    local_size = float(local_size)
+
+                str = "{} / {}".format(deluge.common.fsize(local_size),
+                        deluge.common.fsize(self.remote_size))
+                self.pr_builder.get_object("progData").set_label(str)
+                self.pr_builder.get_object("progBar").set_fraction( local_size / self.remote_size )
 
     def on_noButton(self, data=None):
         self.dl_dialog.destroy()
         del self.dl_dialog
 
     def load_interface(self):
-        log.info("loading interface !!!")
-
         mainmenu = component.get("MenuBar")
         torrentmenu = mainmenu.torrentmenu
 
