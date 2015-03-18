@@ -45,6 +45,7 @@ from deluge.core.rpcserver import export
 from deluge.common import get_path_size
 
 DEFAULT_PREFS = {
+    ## TODO set up actual options here
     "test":"NiNiNi"
 }
 
@@ -57,15 +58,6 @@ class Core(CorePluginBase):
 
     def update(self):
         pass
-
-    @export
-    def download(self, t_id):
-        ## not actually used
-        """Starts torrent download"""
-        log.info("got download request for: {}".format(t_id))
-        torrent = component.get("TorrentManager").torrents[t_id]
-        log.info("processing: {}".format(torrent.filename))
-        return torrent
 
     @export
     def get_size(self, path):
