@@ -39,13 +39,15 @@ Finally, you've got a progress window showing completion of the download and an 
 
 
 ## To Do
-- [ ] Options for number of simultaneous connections (pget stuff)
-- [ ] Options to resume downloads (-c option)
+- [X] Options for number of simultaneous connections (pget stuff)
+- [X] Options to resume downloads (-c option)
 - [X] Fix Done button
 - [X] Save/Load options to/from config
 - [X] Catch edge cases when exiting dialogs (escape instead of button press)
+- [ ] Average speed display in progress dialog
 - [ ] Differentiate files vs. directories (different LFTP options)
 - [ ] Catch transfer error states
+### Long Term
 - [ ] Support for multiple LFTP sessions at once
 - [ ] Autofind LFTP binary (not hardcoded)
-- [ ] Average speed display in progress dialog
+- [ ] Windows/Linux interoperability (client side)

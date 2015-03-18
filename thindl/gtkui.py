@@ -50,7 +50,7 @@ from common import get_resource
 import os.path
 import os
 from subprocess import Popen, PIPE, STDOUT
-from time import sleep
+from time import sleep, time
 
 
 class GtkUI(GtkPluginBase):
@@ -59,6 +59,7 @@ class GtkUI(GtkPluginBase):
 
     def enable(self):
         self.running = False
+        self.local_size_prev = 0
         self.glade = gtk.glade.XML(get_resource("config.glade"))
 
         self.config = None
@@ -112,6 +113,9 @@ class GtkUI(GtkPluginBase):
         self.dl_builder.get_object("localData").set_filename(self.config["local_folder"])
         self.dl_builder.get_object("hostData").set_label(host)
         self.dl_builder.get_object("userEntry").set_text(user)
+
+        self.dl_builder.get_object("connData").set_value(self.config["lftp_pget"])
+        self.dl_builder.get_object("continueToggle").set_active(True)
 
         self.dl_builder.get_object("yesButton").connect("clicked", self.on_yesButton)
         self.dl_builder.get_object("noButton").connect("clicked", self.on_noButton)
@@ -180,6 +184,8 @@ class GtkUI(GtkPluginBase):
     def on_yesButton(self, data=None):
         self.user = self.dl_builder.get_object("userEntry").get_text()
         self.password = self.dl_builder.get_object("passwordEntry").get_text()
+        self.resume = self.dl_builder.get_object("continueToggle").get_active()
+        self.pget = self.dl_builder.get_object("connData").get_value()
         #self.host = self.builder.get_object("hostData").get_text()
         self.local_folder = self.dl_builder.get_object("localData").get_filename()
         ## change if we are grabbing file or directory TODO
@@ -194,6 +200,7 @@ class GtkUI(GtkPluginBase):
         if self.test_transfer():
             log.info("Starting real transfer...")
             self.running = True
+            self.transfer_time = int(time())
             self.start_transfer()  # TODO actually pass args
             self.open_progress()
             ## TODO catch transfer error when updating...
@@ -228,16 +235,24 @@ class GtkUI(GtkPluginBase):
 
         self.transfer = Popen(["/usr/bin/lftp", "sftp://{}".format(self.host)], stdin=PIPE, stdout=PIPE, stderr=PIPE)
 
+        if self.pget > 0:
+            pget_str = " --use-pget-n={}".format(self.pget)
+        else:
+            pget_str = ""
+
+        if self.resume:
+            self.transfer.stdin.write("user {} {} && (mirror -c{} {} {} || exit) && exit\n".format(
+                self.user, self.password, pget_str, self.remote_path, self.local_folder))
+        else:
+            self.transfer.stdin.write("user {} {} && (mirror{} {} {} || exit) && exit\n".format(
+                self.user, self.password, pget_str, self.remote_path, self.local_folder))
+
         ## NOTE this doesn't block
         ## TODO determine file vs folder (get vs mirror)
-        self.transfer.stdin.write("user {} {} && (mirror {} {} || exit) && exit\n".format(
-            self.user, self.password, self.remote_path, self.local_folder))
         #self.transfer.stdin.write("user {} {} && (get -O {} {} || exit) && exit\n".format(
             #self.user, self.password, self.local_folder, self.remote_path))
 
     def update(self):
-        ## NOTE use fsize in common and fpcnt and fspeed (and get_path_size)
-        ## TODO maybe avg. speed local growing
 
         if self.running:
             if self.local_folder is not None and self.remote_size is not None:
@@ -249,15 +264,23 @@ class GtkUI(GtkPluginBase):
                     self.pr_builder.get_object("cancelButton").set_sensitive(False)
                     self.running = False
 
+                #time_diff = int(time()) - self.transfer_time
+
                 if local_size <= 0:
                     local_size = 0.0
                 else:
                     local_size = float(local_size)
 
-                str = "{} / {}".format(deluge.common.fsize(local_size),
+                prog_str = "{} / {}".format(deluge.common.fsize(local_size),
                         deluge.common.fsize(self.remote_size))
-                self.pr_builder.get_object("progData").set_label(str)
                 self.pr_builder.get_object("progBar").set_fraction( local_size / self.remote_size )
+                self.pr_builder.get_object("progressDialog").set_markup("Completed: {}".format(
+                    deluge.common.fpcnt( local_size / self.remote_size )))
+                ## TODO find good way to measure speed....seems like size/time can lag a bit
+                #self.pr_builder.get_object("progressDialog").format_secondary_text("Average Speed: {}".format(
+                    #deluge.common.fspeed( local_size - self.local_size_prev )))
+                #self.local_size_prev = local_size
+                self.pr_builder.get_object("progressDialog").format_secondary_text("Progress: {}".format(prog_str))
 
     def on_noButton(self, data=None):
         self.dl_dialog.destroy()
