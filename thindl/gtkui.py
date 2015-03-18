@@ -125,7 +125,7 @@ class GtkUI(GtkPluginBase):
         self.pr_builder.add_from_file(get_resource("progress.glade"))
         self.prog_dialog = self.pr_builder.get_object("progressDialog")
 
-        self.pr_builder.get_object("progressDialog").connect("close", self.on_cancelButton)
+        self.pr_builder.get_object("progressDialog").connect("delete-event", self.on_progDelete)
         self.pr_builder.get_object("cancelButton").connect("clicked", self.on_cancelButton)
         self.pr_builder.get_object("doneButton").connect("clicked", self.on_doneButton)
 
@@ -134,31 +134,41 @@ class GtkUI(GtkPluginBase):
         self.prog_dialog.show_all()
         ## NOTE progress updates happen in update() loop [every 1s]
 
-    def on_doneButton(self, data=None):
-        ## TODO add catch for kill (i.e. process died, but still hit stop/done) maybe just check poll
+    def on_progDelete(self, widget=None, *data):
+        msg_dialog = gtk.MessageDialog(parent=None, flags=gtk.DIALOG_MODAL,
+                                       type=gtk.MESSAGE_QUESTION, buttons=gtk.BUTTONS_OK_CANCEL,
+                                       message_format="Press 'Ok' to stop the transfer.")
+
+        res = msg_dialog.run()
+        msg_dialog.destroy()
+        if res == gtk.RESPONSE_CANCEL:
+            return True  # True --> no, don't close
+
+        self.stop_transfer()
+        return False
+
+    def stop_transfer(self):
         self.running = False
+        ## TODO add catch for kill (i.e. process died, but still hit stop/done) maybe just check poll
+        ## except OSError
         self.transfer.terminate()
         sleep(0.10)
-        # .poll() cleans defunct, b/c we don't care anymore?
+        ## .poll() cleans defunct, b/c we don't care anymore?
         if self.transfer.poll() is None:
             self.transfer.kill()
         sleep(0.10)
         if self.transfer.poll() is None:
             pass  # uhhh....
+
+    def on_doneButton(self, data=None):
+        self.stop_transfer()
+
         self.prog_dialog.destroy()
         del self.prog_dialog
 
     def on_cancelButton(self, data=None):
-        # except OSError
-        self.running = False
-        self.transfer.terminate()
-        sleep(0.1)  # TODO do we need this?
-        # .poll() cleans defunct, b/c we don't care anymore?
-        if self.transfer.poll() is None:
-            self.transfer.kill()
-        sleep(0.1)
-        if self.transfer.poll() is None:
-            pass  # uhhh....
+        self.stop_transfer()
+
         self.prog_dialog.destroy()
         del self.prog_dialog
 
