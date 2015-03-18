@@ -44,9 +44,11 @@ import deluge.configmanager
 from deluge.core.rpcserver import export
 from deluge.common import get_path_size
 
+
 DEFAULT_PREFS = {
-    ## TODO set up actual options here
-    "test":"NiNiNi"
+    "lftp_binary":"/usr/bin/lftp",
+    "lftp_pget":5.0,
+    "local_folder":"/"
 }
 
 class Core(CorePluginBase):

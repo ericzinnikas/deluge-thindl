@@ -42,7 +42,7 @@ Finally, you've got a progress window showing completion of the download and an 
 - [ ] Options for number of simultaneous connections (pget stuff)
 - [ ] Options to resume downloads (-c option)
 - [X] Fix Done button
-- [ ] Save/Load options to/from config
+- [X] Save/Load options to/from config
 - [X] Catch edge cases when exiting dialogs (escape instead of button press)
 - [ ] Differentiate files vs. directories (different LFTP options)
 - [ ] Catch transfer error states

@@ -49,15 +49,20 @@ from common import get_resource
 
 import os.path
 import os
-from os import O_NONBLOCK
 from subprocess import Popen, PIPE, STDOUT
-from fcntl import fcntl, F_GETFL, F_SETFL
 from time import sleep
 
 
 class GtkUI(GtkPluginBase):
+    #def __init__(self, plugin_name):
+        #self.running = False
+
     def enable(self):
+        self.running = False
         self.glade = gtk.glade.XML(get_resource("config.glade"))
+
+        self.config = None
+        client.thindl.get_config().addCallback(self.cb_init_config)
 
         component.get("Preferences").add_page("thindl", self.glade.get_widget("prefs_box"))
         component.get("PluginManager").register_hook("on_apply_prefs", self.on_apply_prefs)
@@ -68,8 +73,8 @@ class GtkUI(GtkPluginBase):
         self.remote_size = None
         self.textview = None
         self.dl_dialog = None
-        self.running = False
         self.load_interface()
+        self.transfer = None
 
     def on_get(self, data):
         torrent = component.get("TorrentView").get_torrent_status(self.t_id)
@@ -104,8 +109,7 @@ class GtkUI(GtkPluginBase):
         self.dl_builder.get_object("nameData").set_label(name)
         self.dl_builder.get_object("remoteData").set_label(path)
 
-        ## TODO load from config
-        self.dl_builder.get_object("localData").set_filename("~")
+        self.dl_builder.get_object("localData").set_filename(self.config["local_folder"])
         self.dl_builder.get_object("hostData").set_label(host)
         self.dl_builder.get_object("userEntry").set_text(user)
 
@@ -148,17 +152,18 @@ class GtkUI(GtkPluginBase):
         return False
 
     def stop_transfer(self):
-        self.running = False
-        ## TODO add catch for kill (i.e. process died, but still hit stop/done) maybe just check poll
-        ## except OSError
-        self.transfer.terminate()
-        sleep(0.10)
-        ## .poll() cleans defunct, b/c we don't care anymore?
-        if self.transfer.poll() is None:
-            self.transfer.kill()
-        sleep(0.10)
-        if self.transfer.poll() is None:
-            pass  # uhhh....
+        if self.transfer is not None:
+            self.running = False
+            ## TODO add catch for kill (i.e. process died, but still hit stop/done) maybe just check poll
+            ## except OSError
+            self.transfer.terminate()
+            sleep(0.10)
+            ## .poll() cleans defunct, b/c we don't care anymore?
+            if self.transfer.poll() is None:
+                self.transfer.kill()
+            sleep(0.10)
+            if self.transfer.poll() is None:
+                pass  # uhhh....
 
     def on_doneButton(self, data=None):
         self.stop_transfer()
@@ -203,7 +208,7 @@ class GtkUI(GtkPluginBase):
         del self.dl_dialog
 
     def test_transfer(self):
-        self.test_transfer = Popen(["/usr/bin/lftp", "sftp://{}".format(self.host)], stdin=PIPE, stdout=PIPE, stderr=PIPE)
+        self.test_transfer = Popen([self.config["lftp_binary"], "sftp://{}".format(self.host)], stdin=PIPE, stdout=PIPE, stderr=PIPE)
         out = self.test_transfer.communicate(
                 "user {} {} && ((ls && echo THINDLSUCCESS && exit) || (echo THINDLFAILURE && exit))".format(
                 self.user, self.password))
@@ -288,7 +293,8 @@ class GtkUI(GtkPluginBase):
         torrentmenu = component.get("MenuBar").torrentmenu
         torrentmenu.remove(self.menu)
 
-        ## TODO eventually check if download in-progress
+        ## TODO eventually check if download in-progress and cancel it
+        self.stop_transfer()
 
         component.get("Preferences").remove_page("thindl")
         component.get("PluginManager").deregister_hook("on_apply_prefs", self.on_apply_prefs)
@@ -297,13 +303,21 @@ class GtkUI(GtkPluginBase):
     def on_apply_prefs(self):
         log.debug("applying prefs for thindl")
         config = {
-            "test":self.glade.get_widget("txt_test").get_text()
+            "lftp_binary":self.glade.get_widget("lftp_binary_config").get_text(),
+            "lftp_pget":self.glade.get_widget("lftp_pget_config").get_value(),
+            "local_folder":self.glade.get_widget("local_folder_config").get_filename()
         }
         client.thindl.set_config(config)
 
     def on_show_prefs(self):
         client.thindl.get_config().addCallback(self.cb_get_config)
 
+    def cb_init_config(self, config):
+        self.config = config
+
     def cb_get_config(self, config):
         "callback for on show_prefs"
-        self.glade.get_widget("txt_test").set_text(config["test"])
+        self.config = config
+        self.glade.get_widget("lftp_binary_config").set_text(config["lftp_binary"])
+        self.glade.get_widget("lftp_pget_config").set_value(config["lftp_pget"])
+        self.glade.get_widget("local_folder_config").set_filename(config["local_folder"])
