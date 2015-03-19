@@ -1,5 +1,5 @@
 # ThinDL Plugin
-This plugin offers a convenient way for those using Deluge's [Thin Client](http://dev.deluge-torrent.org/wiki/UserGuide/ThinClient) feature to fetch remotely downloaded torrents onto their local machine.
+This plugin offers a convenient way for those using Deluge's [Thin Client](http://dev.deluge-torrent.org/wiki/UserGuide/ThinClient) to fetch torrents from their seedbox onto their local computer.
 
 
 ## Usage
@@ -10,12 +10,13 @@ git clone https://github.com/ericzinnikas/deluge-thindl.git
 cd deluge-thindl
 python2 setup.py bdist_egg
 ```
-Install the egg file produced in `deluge-thindl/dist/`.
+Install the egg file produced in `deluge-thindl/dist/`.  Ensure you build the proper python version (2.6 or 2.7) egg for your seedbox.  If seedbox and client python version differ, you'll need to manually install the proper egg on your seedbox.
 
 
 ## Features
 - Uses [LFTP](http://lftp.yar.ru/) to fetch files over SFTP
 - Plugin auto-configures LFTP per torrent: host, user, remote directory, local directory, concurrent downloads
+- LFTP run interactively in the background, your password never leaves memory; does not use `lftp -f` or `lftp -c` (FTP credentials never saved to disk, or visible in process listing `ps`)
 
 
 ## Screenshots
