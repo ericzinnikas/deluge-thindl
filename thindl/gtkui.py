@@ -69,6 +69,8 @@ class GtkUI(GtkPluginBase):
         component.get("PluginManager").register_hook("on_apply_prefs", self.on_apply_prefs)
         component.get("PluginManager").register_hook("on_show_prefs", self.on_show_prefs)
 
+        self.isWindows = deluge.common.windows_check()
+
         self.proc = None
         self.local_folder = None
         self.remote_size = None
@@ -145,8 +147,6 @@ class GtkUI(GtkPluginBase):
         self.pr_builder.get_object("cancelButton").connect("clicked", self.on_cancelButton)
         self.pr_builder.get_object("doneButton").connect("clicked", self.on_doneButton)
 
-        ## NOTE use fsize in common and fpcnt and fspeed
-
         self.prog_dialog.show_all()
         ## NOTE progress updates happen in update() loop [every 1s]
 
@@ -201,6 +201,12 @@ class GtkUI(GtkPluginBase):
             ## NOTE technically possible to get race condition...not probable though
             os.makedirs(self.local_folder)
 
+        if self.isWindows:
+            cygpath = Popen(["cygpath.exe", "-u", self.local_folder],
+                    stdin=PIPE, stdout=PIPE, stderr=PIPE, env={'PATH': os.environ['PATH']})
+            self.local_folder_cygwin = cygpath.communicate()[0].strip()
+
+
         log.info("Starting test transfer...")
         if self.test_transfer():
             log.info("Starting real transfer...")
@@ -220,7 +226,14 @@ class GtkUI(GtkPluginBase):
         del self.dl_dialog
 
     def test_transfer(self):
-        self.test_transfer = Popen([self.config["lftp_binary"], "sftp://{}".format(self.host)], stdin=PIPE, stdout=PIPE, stderr=PIPE)
+        #if self.isWindows:
+            #self.test_transfer = Popen([self.config["lftp_win_binary"], "sftp://{}".format(self.host)], stdin=PIPE, stdout=PIPE, stderr=PIPE)
+            #self.test_transfer = Popen(["bash.exe", "./lftp.exe", "sftp://{}".format(self.host)],
+                    #stdin=PIPE, stdout=PIPE, stderr=PIPE, env={'PATH': os.environ['PATH']})
+        #else:
+            #self.test_transfer = Popen([self.config["lftp_binary"], "sftp://{}".format(self.host)], stdin=PIPE, stdout=PIPE, stderr=PIPE)
+        self.test_transfer = Popen(["lftp", "sftp://{}".format(self.host)],
+            stdin=PIPE, stdout=PIPE, stderr=PIPE, env={'PATH': os.environ['PATH']})
         out = self.test_transfer.communicate(
                 "user {} {} && ((ls && echo THINDLSUCCESS && exit) || (echo THINDLFAILURE && exit))".format(
                 self.user, self.password))
@@ -235,10 +248,10 @@ class GtkUI(GtkPluginBase):
     def start_transfer(self):  #, host, user, password, remote_path, local_folder):
         ## TODO actually pass args (not prog state)...gets icky
         ## TODO add in variables for connections per file
-        ## TODO config for location of LFTP binary (autofind initially)
         ## TODO choose method sftp, etc...?
 
-        self.transfer = Popen(["/usr/bin/lftp", "sftp://{}".format(self.host)], stdin=PIPE, stdout=PIPE, stderr=PIPE)
+        self.transfer = Popen(["lftp", "sftp://{}".format(self.host)],
+            stdin=PIPE, stdout=PIPE, stderr=PIPE, env={'PATH': os.environ['PATH']})
 
         ## TODO cleanup this mess
         if self.pget > 0:
@@ -252,15 +265,20 @@ class GtkUI(GtkPluginBase):
         if self.resume:
             opts += " -c"
 
-        if self.remote_isFolder:
-            self.transfer.stdin.write("user {} {} && (mirror{} {} {} || exit) && exit\n".format(
-                self.user, self.password, opts, self.remote_path, self.local_folder))
+        if self.isWindows:
+            l_path = self.local_folder_cygwin
         else:
-            opts += " -O " + self.local_folder
+            l_path = self.local_folder
+
+        if self.remote_isFolder:
+            ## NOTE this doesn't block
+            self.transfer.stdin.write("user {} {} && (mirror{} {} {} || exit) && exit\n".format(
+                self.user, self.password, opts, self.remote_path, l_path))
+        else:
+            opts += " -O " + self.l_path
             self.transfer.stdin.write("user {} {} && (pget{} {} || exit) && exit\n".format(
                 self.user, self.password, opts, self.remote_path))
 
-        ## NOTE this doesn't block
 
     def update(self):
 
@@ -317,7 +335,6 @@ class GtkUI(GtkPluginBase):
 
     def on_menu_activate(self, data=None):
         self.t_id = self.get_t_ids()  # just one for now...
-        #for t_id in get_t_ids():
         ## TODO testing for save_path...is it accurate?
         t_data = component.get("SessionProxy").get_torrent_status(self.t_id,
             ["move_on_completed","move_on_completed_path","save_path"]).addCallback(self.on_get)

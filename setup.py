@@ -42,7 +42,7 @@ from setuptools import setup
 __plugin_name__ = "thindl"
 __author__ = "Eric Zinnikas"
 __author_email__ = "hi@ericz.com"
-__version__ = "0.6"
+__version__ = "0.7"
 __url__ = ""
 __license__ = "GPLv3"
 __description__ = ""
