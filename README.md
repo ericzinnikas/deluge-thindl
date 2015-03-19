@@ -3,7 +3,14 @@ This plugin offers a convenient way for those using Deluge's [Thin Client](http:
 
 
 ## Usage
-Currently under development and lacking formal testing, but the author has verified it works (at least on a basic level).  Many more improvements are needed before advocating it to the world.  If you really want to use it, clone this repo then build the plugin yourself with `python setup.py bdist_egg`.
+Currently under heavy development and lacking formal testing, but the author has verified it works (at least on a basic level).  If you really want to use it (feedback appreciated):
+
+```shell
+git clone https://github.com/ericzinnikas/deluge-thindl.git
+cd deluge-thindl
+python2 setup.py bdist_egg
+```
+Install the egg file produced in `deluge-thindl/dist/`.
 
 
 ## Features
@@ -12,17 +19,15 @@ Currently under development and lacking formal testing, but the author has verif
 
 
 ## Screenshots
-Here are some examples of functionality, excuse the UI...hopefully that will improve over time.
-
-First you can access the plugin through the context menu on a per-torrent basis:
+Access the plugin through the right-click context menu:
 
 ![Context Menu](/screenshots/thindl-menu.png?raw=true "Context Menu")
 
-The next dialog shows selected options:
+Confirm/Change settings:
 
 ![Download Dialog](/screenshots/thindl-dialog.png?raw=true "Download Dialog")
 
-Finally, you've got a progress window showing completion of the download and an option to cancel it:
+Progress window showing details:
 
 ![Progress Dialog](/screenshots/thindl-prog.png?raw=true "Progress Dialog")
 
