@@ -1,7 +1,7 @@
 #
 # gtkui.py
 #
-# Copyright (C) 2009 Eric Zinnikas <hi@ericz.com>
+# Copyright (C) 2015 Eric Zinnikas <hi@ericz.com>
 #
 # Basic plugin template created by:
 # Copyright (C) 2008 Martijn Voncken <mvoncken@gmail.com>
@@ -85,8 +85,13 @@ class GtkUI(GtkPluginBase):
         conn = client.connection_info()
         host = conn[0]
         user = conn[2]
-        ## TODO if localhost, don't transfer
-        ## TODO check torrent["progress"] != 100.0
+        if host == "127.0.0.1":
+            msg = gtk.MessageDialog(parent=None, flags=gtk.DIALOG_MODAL,
+                                    type=gtk.MESSAGE_ERROR, buttons=gtk.BUTTONS_OK,
+                                    message_format="Cannot transfer file from localhost!")
+            msg.run()
+            msg.destroy()
+            return False
 
         if data["move_on_completed"]:
             path = data["move_on_completed_path"]
@@ -164,18 +169,24 @@ class GtkUI(GtkPluginBase):
         return False
 
     def stop_transfer(self):
+        ## if ^ returns True, set self.running == False
         if self.transfer is not None:
-            self.running = False
-            ## TODO add catch for kill (i.e. process died, but still hit stop/done) maybe just check poll
-            ## except OSError
-            self.transfer.terminate()
+            try:
+                self.transfer.terminate()
+            except OSError:  ## no such process
+                return True
             sleep(0.10)
-            ## .poll() cleans defunct, b/c we don't care anymore?
+
             if self.transfer.poll() is None:
-                self.transfer.kill()
+                try:
+                    self.transfer.kill()
+                except OSError:  ## process already dead
+                    return True
             sleep(0.10)
+
             if self.transfer.poll() is None:
-                pass  # uhhh....
+                return False  # uhhh....
+        return True
 
     def on_doneButton(self, data=None):
         self.stop_transfer()
@@ -214,24 +225,17 @@ class GtkUI(GtkPluginBase):
             self.transfer_time = int(time())
             self.start_transfer()  # TODO actually pass args
             self.open_progress()
-            ## TODO catch transfer error when updating...
-            ## then see if program still running (though we need to wait for time to connect...? how when it hangs?
-            ## TODO figure out failure state: i.e. process has stopped, but filesizes not matched
         else:
-            ## TODO connection error
-            ## present dialog about wrong user/password or network issues
-            pass
+            msg = gtk.MessageDialog(parent=None, flags=gtk.DIALOG_MODAL,
+                                    type=gtk.MESSAGE_ERROR, buttons=gtk.BUTTONS_OK,
+                                    message_format="Connection Error!  Check user/password and network.")
+            msg.run()
+            msg.destroy()
 
         self.dl_dialog.destroy()
         del self.dl_dialog
 
     def test_transfer(self):
-        #if self.isWindows:
-            #self.test_transfer = Popen([self.config["lftp_win_binary"], "sftp://{}".format(self.host)], stdin=PIPE, stdout=PIPE, stderr=PIPE)
-            #self.test_transfer = Popen(["bash.exe", "./lftp.exe", "sftp://{}".format(self.host)],
-                    #stdin=PIPE, stdout=PIPE, stderr=PIPE, env={'PATH': os.environ['PATH']})
-        #else:
-            #self.test_transfer = Popen([self.config["lftp_binary"], "sftp://{}".format(self.host)], stdin=PIPE, stdout=PIPE, stderr=PIPE)
         self.test_transfer = Popen(["lftp", "sftp://{}".format(self.host)],
             stdin=PIPE, stdout=PIPE, stderr=PIPE, env={'PATH': os.environ['PATH']})
         out = self.test_transfer.communicate(
@@ -246,7 +250,6 @@ class GtkUI(GtkPluginBase):
         return "THINDLSUCCESS" in out[0]
 
     def start_transfer(self):  #, host, user, password, remote_path, local_folder):
-        ## TODO actually pass args (not prog state)...gets icky
         ## TODO add in variables for connections per file
         ## TODO choose method sftp, etc...?
 
@@ -272,18 +275,26 @@ class GtkUI(GtkPluginBase):
 
         if self.remote_isFolder:
             ## NOTE this doesn't block
-            self.transfer.stdin.write("user {} {} && (mirror{} {} {} || exit) && exit\n".format(
+            self.transfer.stdin.write("user {} {} && (mirror{} {} {} || exit)\n".format(
                 self.user, self.password, opts, self.remote_path, l_path))
         else:
             opts += " -O " + self.l_path
-            self.transfer.stdin.write("user {} {} && (pget{} {} || exit) && exit\n".format(
+            self.transfer.stdin.write("user {} {} && (pget{} {} || exit)\n".format(
                 self.user, self.password, opts, self.remote_path))
 
 
     def update(self):
 
         if self.running:
-            if self.local_folder is not None and self.remote_size is not None:
+            if self.transfer is not None:
+                ## ended prematurely
+                ## TODO figure out failure state: i.e. process has stopped, but filesizes not matched
+                msg = gtk.MessageDialog(parent=None, flags=gtk.DIALOG_MODAL,
+                                        type=gtk.MESSAGE_ERROR, buttons=gtk.BUTTONS_OK,
+                                        message_format="Transfer unexpectedly interrupted! Try restarting.")
+                msg.run()
+                msg.destroy()
+            elif self.local_folder is not None and self.remote_size is not None:
                 local_size = deluge.common.get_path_size(self.local_folder)
 
                 if local_size == self.remote_size:
@@ -335,7 +346,6 @@ class GtkUI(GtkPluginBase):
 
     def on_menu_activate(self, data=None):
         self.t_id = self.get_t_ids()  # just one for now...
-        ## TODO testing for save_path...is it accurate?
         t_data = component.get("SessionProxy").get_torrent_status(self.t_id,
             ["move_on_completed","move_on_completed_path","save_path"]).addCallback(self.on_get)
 
@@ -343,7 +353,6 @@ class GtkUI(GtkPluginBase):
         torrentmenu = component.get("MenuBar").torrentmenu
         torrentmenu.remove(self.menu)
 
-        ## TODO eventually check if download in-progress and cancel it
         self.stop_transfer()
 
         component.get("Preferences").remove_page("thindl")

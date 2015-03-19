@@ -1,7 +1,7 @@
 #
 # common.py
 #
-# Copyright (C) 2009 Eric Zinnikas <hi@ericz.com>
+# Copyright (C) 2015 Eric Zinnikas <hi@ericz.com>
 #
 # Basic plugin template created by:
 # Copyright (C) 2008 Martijn Voncken <mvoncken@gmail.com>
