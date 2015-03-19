@@ -22,11 +22,6 @@ Progress window showing details:
 ![Progress Dialog](/screenshots/thindl-prog.png?raw=true "Progress Dialog")
 
 
-## Dependencies
-- Deluge (connected to seedbox)
-- LFTP (native on UNIX, through Cygwin on Windows)
-
-
 ## Usage
 Currently under heavy development and lacking formal testing, but the author has verified it works.  If you really want to use it (feedback appreciated):
 
@@ -39,8 +34,9 @@ Install the egg file produced in `deluge-thindl/dist/`.  Ensure you build the pr
 
 ### Windows Usage
 - Install Cygwin, instructions [here](https://www.feralhosting.com/faq/view?question=235)
--- Make sure you install the LFTP package (if you follow the steps above you'll be set)
-- Add `c:\cygwin\bin` (wherever you installed it) to your Windows PATH, instructions [here](http://www.howtogeek.com/howto/41382/how-to-use-linux-commands-in-windows-with-cygwin/)
+  - Make sure you install the LFTP package (if you follow the steps above you'll be set)
+- Add Cygwin to Windows Path, instructions [here](http://www.howtogeek.com/howto/41382/how-to-use-linux-commands-in-windows-with-cygwin/)
+  - Read 2nd half of the above article, add `c:\cygwin\bin` (or wherever you installed it)
 
 
 ## To Do
