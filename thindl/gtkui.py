@@ -72,6 +72,7 @@ class GtkUI(GtkPluginBase):
         self.proc = None
         self.local_folder = None
         self.remote_size = None
+        self.remote_isFolder = None
         self.textview = None
         self.dl_dialog = None
         self.load_interface()
@@ -121,10 +122,17 @@ class GtkUI(GtkPluginBase):
         self.dl_builder.get_object("noButton").connect("clicked", self.on_noButton)
         self.dl_builder.get_object("downloadDialog").connect("close", self.on_noButton)
 
+        ## pre-fetch because it breaks things later...
+        client.thindl.get_size(self.remote_path).addCallback(self.cb_get_rsize)
+
         self.dl_dialog.show_all()
 
-    def cb_get_rsize(self, size):
+    def cb_get_rsize(self, data):
+        size = data[0]
+        isFolder = data[1]
+        log.info("Folder is: {}".format(isFolder))
         self.remote_size = size
+        self.remote_isFolder = isFolder
 
     def open_progress(self):
         self.pr_builder = gtk.Builder()
@@ -188,13 +196,10 @@ class GtkUI(GtkPluginBase):
         self.pget = self.dl_builder.get_object("connData").get_value()
         #self.host = self.builder.get_object("hostData").get_text()
         self.local_folder = self.dl_builder.get_object("localData").get_filename()
-        ## change if we are grabbing file or directory TODO
         self.local_folder = os.path.join(self.local_folder, self.remote_name)
         if not os.path.exists(self.local_folder):
             ## NOTE technically possible to get race condition...not probable though
             os.makedirs(self.local_folder)
-
-        client.thindl.get_size(self.remote_path).addCallback(self.cb_get_rsize)
 
         log.info("Starting test transfer...")
         if self.test_transfer():
@@ -235,22 +240,27 @@ class GtkUI(GtkPluginBase):
 
         self.transfer = Popen(["/usr/bin/lftp", "sftp://{}".format(self.host)], stdin=PIPE, stdout=PIPE, stderr=PIPE)
 
+        ## TODO cleanup this mess
         if self.pget > 0:
-            pget_str = " --use-pget-n={}".format(self.pget)
+            if self.remote_isFolder:
+                opts = " --use-pget-n={}".format(self.pget)
+            else:
+                opts = " -n {}".format(self.pget)
         else:
-            pget_str = ""
+            opts = ""
 
         if self.resume:
-            self.transfer.stdin.write("user {} {} && (mirror -c{} {} {} || exit) && exit\n".format(
-                self.user, self.password, pget_str, self.remote_path, self.local_folder))
-        else:
+            opts += " -c"
+
+        if self.remote_isFolder:
             self.transfer.stdin.write("user {} {} && (mirror{} {} {} || exit) && exit\n".format(
-                self.user, self.password, pget_str, self.remote_path, self.local_folder))
+                self.user, self.password, opts, self.remote_path, self.local_folder))
+        else:
+            opts += " -O " + self.local_folder
+            self.transfer.stdin.write("user {} {} && (pget{} {} || exit) && exit\n".format(
+                self.user, self.password, opts, self.remote_path))
 
         ## NOTE this doesn't block
-        ## TODO determine file vs folder (get vs mirror)
-        #self.transfer.stdin.write("user {} {} && (get -O {} {} || exit) && exit\n".format(
-            #self.user, self.password, self.local_folder, self.remote_path))
 
     def update(self):
 

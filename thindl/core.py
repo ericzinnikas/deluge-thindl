@@ -43,6 +43,7 @@ import deluge.component as component
 import deluge.configmanager
 from deluge.core.rpcserver import export
 from deluge.common import get_path_size
+from os.path import isdir
 
 
 DEFAULT_PREFS = {
@@ -63,7 +64,7 @@ class Core(CorePluginBase):
 
     @export
     def get_size(self, path):
-        return get_path_size(path)
+        return (get_path_size(path), isdir(path))
 
     @export
     def set_config(self, config):

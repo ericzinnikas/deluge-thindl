@@ -45,7 +45,7 @@ Finally, you've got a progress window showing completion of the download and an 
 - [X] Save/Load options to/from config
 - [X] Catch edge cases when exiting dialogs (escape instead of button press)
 - [ ] Average speed display in progress dialog
-- [ ] Differentiate files vs. directories (different LFTP options)
+- [X] Differentiate files vs. directories (different LFTP options)
 - [ ] Catch transfer error states
 
 ### Long Term
