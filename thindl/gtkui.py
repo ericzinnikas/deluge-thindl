@@ -353,7 +353,6 @@ class GtkUI(GtkPluginBase):
     def on_apply_prefs(self):
         log.debug("applying prefs for thindl")
         config = {
-            "lftp_binary":self.glade.get_widget("lftp_binary_config").get_text(),
             "lftp_pget":self.glade.get_widget("lftp_pget_config").get_value(),
             "local_folder":self.glade.get_widget("local_folder_config").get_filename()
         }
@@ -368,6 +367,5 @@ class GtkUI(GtkPluginBase):
     def cb_get_config(self, config):
         "callback for on show_prefs"
         self.config = config
-        self.glade.get_widget("lftp_binary_config").set_text(config["lftp_binary"])
         self.glade.get_widget("lftp_pget_config").set_value(config["lftp_pget"])
         self.glade.get_widget("local_folder_config").set_filename(config["local_folder"])

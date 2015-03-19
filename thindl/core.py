@@ -47,7 +47,6 @@ from os.path import isdir
 
 
 DEFAULT_PREFS = {
-    "lftp_binary":"/usr/bin/lftp",
     "lftp_pget":5.0,
     "local_folder":"/"
 }
