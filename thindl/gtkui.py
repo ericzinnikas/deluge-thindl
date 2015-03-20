@@ -58,7 +58,11 @@ class GtkUI(GtkPluginBase):
         #self.running = False
 
     def enable(self):
+        self.transfer_stopped = False
         self.running = False
+        self.speed = 0.0
+        self.time_bytes = 0
+        self.local_size = 0
         self.local_size_prev = 0
         self.glade = gtk.glade.XML(get_resource("config.glade"))
 
@@ -195,6 +199,7 @@ class GtkUI(GtkPluginBase):
         del self.prog_dialog
 
     def on_cancelButton(self, data=None):
+        self.transfer_stopped = True
         self.stop_transfer()
 
         self.prog_dialog.destroy()
@@ -286,39 +291,43 @@ class GtkUI(GtkPluginBase):
     def update(self):
 
         if self.running:
-            if self.transfer is not None:
+            if self.transfer.poll() is not None and not self.transfer_stopped:
                 ## ended prematurely
                 ## TODO figure out failure state: i.e. process has stopped, but filesizes not matched
                 msg = gtk.MessageDialog(parent=None, flags=gtk.DIALOG_MODAL,
                                         type=gtk.MESSAGE_ERROR, buttons=gtk.BUTTONS_OK,
                                         message_format="Transfer unexpectedly interrupted! Try restarting.")
+
+                self.prog_dialog.destroy()
                 msg.run()
                 msg.destroy()
             elif self.local_folder is not None and self.remote_size is not None:
-                local_size = deluge.common.get_path_size(self.local_folder)
 
-                if local_size == self.remote_size:
+                if self.local_size == self.remote_size:
                     self.pr_builder.get_object("doneButton").set_sensitive(True)
-                    ## TODO check state across runs
                     self.pr_builder.get_object("cancelButton").set_sensitive(False)
                     self.running = False
 
-                #time_diff = int(time()) - self.transfer_time
-
-                if local_size <= 0:
-                    local_size = 0.0
-                else:
-                    local_size = float(local_size)
-
-                prog_str = "{} / {}".format(deluge.common.fsize(local_size),
-                        deluge.common.fsize(self.remote_size))
-                self.pr_builder.get_object("progBar").set_fraction( local_size / self.remote_size )
-                self.pr_builder.get_object("progressDialog").set_markup("Completed: {}".format(
-                    deluge.common.fpcnt( local_size / self.remote_size )))
                 ## TODO find good way to measure speed....seems like size/time can lag a bit
-                #self.pr_builder.get_object("progressDialog").format_secondary_text("Average Speed: {}".format(
-                    #deluge.common.fspeed( local_size - self.local_size_prev )))
-                #self.local_size_prev = local_size
+                if time() % 3 < 1:
+                    self.local_size = deluge.common.get_path_size(self.local_folder)
+                    self.time_bytes += self.local_size - self.local_size_prev
+                    self.speed = self.time_bytes / 3.0
+                    self.time_bytes = 0
+                else:
+                    self.time_bytes += self.local_size - self.local_size_prev
+
+                if self.local_size <= 0:
+                    self.local_size = 0.0
+                else:
+                    self.local_size = float(self.local_size)
+
+                prog_str = "{} / {}".format(deluge.common.fsize(self.local_size),
+                        deluge.common.fsize(self.remote_size))
+                self.pr_builder.get_object("progBar").set_fraction( self.local_size / self.remote_size )
+                self.pr_builder.get_object("progressDialog").set_markup("Completed: {} ({})".format(
+                    deluge.common.fpcnt( self.local_size / self.remote_size ), deluge.common.fspeed( self.speed )))
+                self.local_size_prev = self.local_size
                 self.pr_builder.get_object("progressDialog").format_secondary_text("Progress: {}".format(prog_str))
 
     def on_noButton(self, data=None):
