@@ -347,14 +347,22 @@ class GtkUI(GtkPluginBase):
         mainmenu.add_torrentmenu_separator()
         torrentmenu.append(self.menu)
 
-    def get_t_ids(self):
+    def get_selected(self):
         """
         returns selected torrents
         """
-        return component.get("TorrentView").get_selected_torrent()
+        return component.get("TorrentView").get_selected_torrents()
 
     def on_menu_activate(self, data=None):
-        self.t_id = self.get_t_ids()  # just one for now...
+        selected = self.get_selected()
+        if selected is None:
+            ## TODO error
+            pass
+
+        tx = Transfer(selected[0])
+        ## what to do with TX? add to list?
+        ## add to dict { torrent_hash : tx_obj }
+
         t_data = component.get("SessionProxy").get_torrent_status(self.t_id,
             ["move_on_completed","move_on_completed_path","save_path"]).addCallback(self.on_get)
 
@@ -387,3 +395,11 @@ class GtkUI(GtkPluginBase):
         self.config = config
         self.glade.get_widget("lftp_pget_config").set_value(config["lftp_pget"])
         self.glade.get_widget("local_folder_config").set_filename(config["local_folder"])
+
+
+class Transfer(object):
+    """
+    transfer stuff goes here
+    """
+    def __init__(self):
+        pass
