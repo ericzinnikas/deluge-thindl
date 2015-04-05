@@ -400,6 +400,20 @@ class GtkUI(GtkPluginBase):
 class Transfer(object):
     """
     transfer stuff goes here
+    notes: have dict with hash:Torrent in main class
     """
-    def __init__(self):
+    def __init__(self, hash):
+        self.hash = hash  # who am I?
+
+        self.is_running = False  # am I transferring files?
+        self.is_completed = False  # all files transferred?
+
+        self.local['size']      = 0
+        self.local['folder']    = None  # TODO load from config
+
+        self.remote['size']     = None  # TODO set remotely
+        self.remote['folder']   = None  # TODO set remotely??
+        self.remote['name']     = None  # TODO set remotely ? or thru client
+
+        ## TODO dict/list for dialogs
         pass
